@@ -54,7 +54,7 @@ Use the [Harmont CLI](https://github.com/harmont-dev/harmont-cli):
 hm run hello
 ```
 
-`hm run` walks `.harmont/*.py`, imports each file (triggering the decorators), renders the registered pipeline to JSON, and executes it in Docker.
+`hm run` walks `.harmont/*.py`, imports each file (triggering the decorators), renders the registered pipeline to JSON, and executes it (locally in Docker by default, or against the cloud via `hm cloud run`).
 
 ## DSL surface
 
@@ -67,7 +67,7 @@ hm run hello
 | `hm.wait()` | `Step` | Explicit synchronization barrier |
 | `@hm.target()` | decorator | Reusable, memoized building block |
 | `@hm.pipeline("slug")` | decorator | Register a pipeline (multiple per file are fine) |
-| `hm.pipeline(*leaves, env=...)` | `dict` | Factory form — build the v0 IR dict directly (used in tests) |
+| `hm.pipeline(*leaves, env=..., default_image=...)` | `dict` | Factory form — build the v0 IR dict directly (used in tests) |
 
 Cache policies (`hm.ttl`, `hm.on_change`, `hm.forever`, `hm.compose`), triggers (`hm.push`, `hm.pull_request`, `hm.schedule`), and matrix axes are documented in the module docstrings; start at `harmont/__init__.py`.
 
@@ -78,7 +78,7 @@ Cache policies (`hm.ttl`, `hm.on_change`, `hm.forever`, `hm.compose`), triggers 
 | Call | Project type |
 |---|---|
 | `hm.rust(path=..., version="stable")` | cargo + clippy + rustfmt |
-| `hm.haskell(ghc=..., cabal="latest")` | cabal (call `.package(path)` for a package) |
+| `hm.haskell(ghc="9.6.7", cabal="latest")` | cabal (call `.cabal(path)` to build a package) |
 | `hm.python(path=..., uv_version="latest")` | uv-based Python project |
 | `hm.go(path=..., version="1.23.2")` | go build/test/vet/fmt |
 | `hm.npm(path=..., version="20")` | npm + arbitrary scripts |
@@ -87,7 +87,7 @@ Cache policies (`hm.ttl`, `hm.on_change`, `hm.forever`, `hm.compose`), triggers 
 | `hm.dotnet(path=..., channel="8.0")` | .NET via dotnet CLI |
 | `hm.ruby(path=..., version="default")` | Bundler + Rake |
 | `hm.ocaml(path=..., compiler="5.1.1")` | opam + Dune |
-| `hm.zig(version=..., ...)` | zig build/test/fmt |
+| `hm.zig(path=..., version="0.13.0")` | zig build/test/fmt |
 | `hm.perl(path=...)` | cpanm + prove |
 | `hm.composer(path=..., laravel=False)` | PHP / Laravel via Composer |
 | `hm.elm(path=..., elm_version="0.19.1")` | Elm |
@@ -108,6 +108,11 @@ from harmont.haskell import HaskellPackage, HaskellToolchain
 @hm.target()
 def apt_base(base: Annotated[hm.Step, hm.BaseImage("ubuntu-24.04")]) -> hm.Step:
     return base.sh("apt-get update").sh("apt-get install -y python3")
+
+
+@hm.target()
+def ghc() -> HaskellToolchain:
+    return hm.haskell(ghc="9.6.7")
 
 
 @hm.target()
