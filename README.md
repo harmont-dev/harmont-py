@@ -40,6 +40,8 @@ cd harmont-py
 pip install -e .
 ```
 
+If you arrived here from the [`harmont-cli`](https://github.com/harmont-dev/harmont-cli) Quick start, you already did this — skip to Step 3.
+
 Development extras (pytest, mypy, ruff):
 
 ```sh
