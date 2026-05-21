@@ -40,12 +40,6 @@ def deploy(
             "`from_=<Step>` to build from a Step chain."
         )
         raise ValueError(msg)
-    if from_ is not None and not isinstance(from_, Step):
-        msg = (
-            f"hm.dev.deploy from_= must be a hm.Step, got {type(from_).__name__}\n"
-            "  → pass a Step chain (e.g. hm.sh(...) or a @hm.target() value)"
-        )
-        raise ValueError(msg)
 
     pm = _validate_port_mapping(port_mapping)
     env_resolved = _validate_env(env)
@@ -117,7 +111,7 @@ def _validate_volumes(
         if not isinstance(hp, str) or not hp:
             msg = (
                 f"hm.dev.deploy volumes host path must be a non-empty str, "
-                f"got {hp!r}"
+                f"got {hp!r} ({type(hp).__name__})"
             )
             raise ValueError(msg)
         if not isinstance(cp, str) or not cp.startswith("/"):
