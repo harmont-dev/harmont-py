@@ -63,9 +63,9 @@ def test_cmd_rejects_non_string_elements():
         deploy(image="x", port_mapping={5432: port()}, cmd=["postgres", 5432])  # type: ignore[list-item]
 
 
-def test_volumes_keys_resolve_relative_to_worktree_at_dump_time():
-    # The factory keeps host paths verbatim; resolution happens in
-    # _registry_dump.py. Here we only check that the dict is preserved.
+def test_volumes_preserves_host_path_verbatim():
+    # The factory keeps host paths verbatim; resolution to absolute
+    # worktree paths happens in _registry_dump.py.
     d = deploy(image="x", port_mapping={5432: port()}, volumes={".": "/workspace"})
     assert dict(d.volumes) == {".": "/workspace"}
 
