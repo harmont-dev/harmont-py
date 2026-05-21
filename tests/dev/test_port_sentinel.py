@@ -19,4 +19,4 @@ def test_port_is_hashable():
     # frozen LocalDeployment uses port_mapping values inside a Mapping;
     # being hashable means user code can put it in sets / tuple keys
     # without surprise.
-    {port(): 1}
+    assert {port(): 1}[port()] == 1

@@ -11,6 +11,6 @@ Public surface (grows across tasks):
 """
 from __future__ import annotations
 
-from ._port import _PortSentinel, port
+from ._port import port
 
-__all__ = ["_PortSentinel", "port"]
+__all__ = ["port"]
