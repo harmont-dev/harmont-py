@@ -39,12 +39,25 @@ _VERSION_RE = re.compile(r"^[a-zA-Z0-9.-]+$")
 
 
 def _ghcup_cmd(ghc: str, cabal: str) -> str:
+    # `fourmolu` backs `pkg.fmt()`. We pull a pre-built binary from
+    # the fourmolu GitHub releases rather than `cabal install fourmolu`
+    # because the latter compiles from source on every cold cache,
+    # adding ~10 minutes per pipeline first-run. `hlint` (for the
+    # rarely-used `pkg.hlint()`) and HLS are intentionally NOT
+    # installed here — pipelines that need them should layer their
+    # own step.
+    fourmolu_url = (
+        "https://github.com/fourmolu/fourmolu/releases/download/"
+        "v0.18.0.0/fourmolu-0.18.0.0-linux-x86_64"
+    )
     return (
         "curl -fsSL https://downloads.haskell.org/~ghcup/x86_64-linux-ghcup "
         "-o /usr/local/bin/ghcup && chmod +x /usr/local/bin/ghcup && "
         f"ghcup install ghc {ghc} && ghcup install cabal {cabal} && "
         f"ghcup set ghc {ghc} && ghcup set cabal {cabal} && "
-        "ln -sf /root/.ghcup/bin/* /usr/local/bin/"
+        "ln -sf /root/.ghcup/bin/* /usr/local/bin/ && "
+        f"curl -fsSL {fourmolu_url} -o /usr/local/bin/fourmolu && "
+        "chmod +x /usr/local/bin/fourmolu"
     )
 
 
