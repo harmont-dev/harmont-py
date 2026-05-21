@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from harmont._deploy import DEPLOYMENTS, Deployment, dep_graph, topo_order
 from harmont._target import clear_target_memo
@@ -24,9 +24,6 @@ from harmont.pipeline import pipeline as _assemble
 
 from ._deployment import LocalDeployment
 from ._port import _PortSentinel
-
-if TYPE_CHECKING:
-    pass
 
 
 _SENTINEL_WIRE = "__hm_dev_port__"
