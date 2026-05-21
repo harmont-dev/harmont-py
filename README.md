@@ -2,9 +2,9 @@
 
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Python DSL for defining [Harmont](https://harmont.dev) CI pipelines. Pipelines are chains of shell commands, branched with `.fork()`, synchronized with `hm.wait()`, registered with a decorator, and rendered to a JSON IR consumed by the Harmont runner.
+Python DSL for defining [Harmont](https://harmont.dev) CI pipelines.
 
-Pipelines defined with this package are run by the companion [`harmont-cli`](https://github.com/harmont-dev/harmont-cli) (`hm run`).
+Pipelines are chains of shell commands, branched with `.fork()`, synchronized with `hm.wait()`, registered with a decorator, and rendered to a JSON IR. The companion [`harmont-cli`](https://github.com/harmont-dev/harmont-cli) consumes that IR and runs the pipeline locally in Docker or on the hosted Harmont cloud.
 
 The package installs as `harmont` and you import it as `harmont`:
 
@@ -12,27 +12,11 @@ The package installs as `harmont` and you import it as `harmont`:
 import harmont as hm
 ```
 
-## Install
+## Quick start
 
-`harmont` is not yet published to PyPI. Install from source:
+### 1. Write a pipeline
 
-```sh
-git clone https://github.com/harmont-dev/harmont-py
-cd harmont-py
-pip install -e .
-```
-
-For development (tests, mypy, ruff):
-
-```sh
-pip install -e '.[dev]'
-```
-
-Requires Python 3.11+.
-
-## Quickstart
-
-A pipeline file lives at `.harmont/<slug>.py` in your repo. The simplest one:
+A pipeline file lives at `.harmont/<slug>.py` in your repo:
 
 ```python
 import harmont as hm
@@ -46,82 +30,113 @@ def hello() -> hm.Step:
     )
 ```
 
-The DSL primitives:
+### 2. Install
 
-| Primitive                        | Returns | What it does                                                                 |
-| -------------------------------- | ------- | ---------------------------------------------------------------------------- |
-| `hm.sh(cmd, cwd=..., label=...)` | `Step`  | Start a chain in one call (= `hm.scratch().sh(cmd, ...)`).                   |
-| `hm.scratch()`                   | `Step`  | Empty root; chain with `.sh(...)` for an explicit start.                     |
-| `Step.sh(cmd, cwd=..., ...)`     | `Step`  | Run a shell command. Chained `.sh` calls share container state.              |
-| `Step.fork(label=...)`           | `Step`  | Branch from a shared base into parallel work.                                |
-| `hm.wait()`                      | `Step`  | Explicit synchronization barrier.                                            |
-| `@hm.target()`                   | decorator | Reusable, memoized building block (composed into one or more pipelines).     |
-| `@hm.pipeline("slug")`           | decorator | Register a pipeline. Multiple per file are fine.                             |
-| `hm.pipeline(*leaves, env=...)`  | `dict`  | Factory form — build the v0 IR dict directly (used in tests).                |
+Not yet on PyPI. Install from source (Python 3.11+):
 
-Cache policies (`hm.ttl`, `hm.on_change`, `hm.forever`, `hm.compose`), triggers (`hm.push`, `hm.pull_request`, `hm.schedule`), and matrix axes are documented in the module docstrings; see `harmont/__init__.py`.
-
-A two-branch example:
-
-```python
-@hm.pipeline("ci")
-def ci() -> hm.Step:
-    setup = hm.sh(
-        "apt-get update && apt-get install -y curl",
-        label="apt",
-    )
-    fetch = setup.fork(label="branch-a").sh(
-        "curl -fsSL https://example.com",
-        label="fetch",
-    )
-    work = setup.fork(label="branch-b").sh(
-        "echo independent work",
-        label="other",
-    )
-    return hm.pipeline(fetch, work, default_image="ubuntu:24.04")
+```sh
+git clone https://github.com/harmont-dev/harmont-py
+cd harmont-py
+pip install -e .
 ```
 
-### Typed fixture-style target deps
+Development extras (pytest, mypy, ruff):
 
-Declare dependencies with `Target[T]` annotations (resolved by parameter
-name from the global `@hm.target` registry) and base images with
-`Annotated[Step, BaseImage("...")]`:
+```sh
+pip install -e '.[dev]'
+```
+
+### 3. Run
+
+Use the [Harmont CLI](https://github.com/harmont-dev/harmont-cli):
+
+```sh
+hm run hello
+```
+
+`hm run` walks `.harmont/*.py`, imports each file (triggering the decorators), renders the registered pipeline to JSON, and executes it in Docker.
+
+## DSL surface
+
+| Primitive | Returns | What it does |
+|---|---|---|
+| `hm.sh(cmd, cwd=..., label=...)` | `Step` | Start a chain in one call (= `hm.scratch().sh(cmd, ...)`) |
+| `hm.scratch()` | `Step` | Empty root; chain with `.sh(...)` for an explicit start |
+| `Step.sh(cmd, cwd=..., ...)` | `Step` | Run a shell command; chained `.sh` shares container state |
+| `Step.fork(label=...)` | `Step` | Branch a shared base into parallel work |
+| `hm.wait()` | `Step` | Explicit synchronization barrier |
+| `@hm.target()` | decorator | Reusable, memoized building block |
+| `@hm.pipeline("slug")` | decorator | Register a pipeline (multiple per file are fine) |
+| `hm.pipeline(*leaves, env=...)` | `dict` | Factory form — build the v0 IR dict directly (used in tests) |
+
+Cache policies (`hm.ttl`, `hm.on_change`, `hm.forever`, `hm.compose`), triggers (`hm.push`, `hm.pull_request`, `hm.schedule`), and matrix axes are documented in the module docstrings; start at `harmont/__init__.py`.
+
+## Language toolchains
+
+`harmont` ships first-class wrappers for the common toolchains. Each exposes the actions that make sense for that ecosystem (e.g. `.build()`, `.test()`, `.clippy()`, `.fmt()` for Rust; `.test()`, `.lint()`, `.fmt()`, `.typecheck()` for Python):
+
+| Call | Project type |
+|---|---|
+| `hm.rust(path=..., version="stable")` | cargo + clippy + rustfmt |
+| `hm.haskell(ghc=..., cabal="latest")` | cabal (call `.package(path)` for a package) |
+| `hm.python(path=..., uv_version="latest")` | uv-based Python project |
+| `hm.go(path=..., version="1.23.2")` | go build/test/vet/fmt |
+| `hm.npm(path=..., version="20")` | npm + arbitrary scripts |
+| `hm.gradle(path=..., jdk="21", kotlin=False)` | Java or Kotlin via Gradle |
+| `hm.cmake(path=..., lang="c"\|"cpp")` | C/C++ via CMake + CTest |
+| `hm.dotnet(path=..., channel="8.0")` | .NET via dotnet CLI |
+| `hm.ruby(path=..., version="default")` | Bundler + Rake |
+| `hm.ocaml(path=..., compiler="5.1.1")` | opam + Dune |
+| `hm.zig(version=..., ...)` | zig build/test/fmt |
+| `hm.perl(path=...)` | cpanm + prove |
+| `hm.composer(path=..., laravel=False)` | PHP / Laravel via Composer |
+| `hm.elm(path=..., elm_version="0.19.1")` | Elm |
+
+Working examples for each toolchain live in [`harmont-cli/examples/`](https://github.com/harmont-dev/harmont-cli/tree/main/examples).
+
+## Composing with targets
+
+For larger pipelines, factor toolchain setup into `@hm.target()` and let pipelines depend on them by parameter name. `Target[T]` and `Annotated[Step, BaseImage("...")]` are typed markers that unwrap cleanly under mypy and pyright.
 
 ```python
 from typing import Annotated
 
+import harmont as hm
+from harmont.haskell import HaskellPackage, HaskellToolchain
+
+
 @hm.target()
 def apt_base(base: Annotated[hm.Step, hm.BaseImage("ubuntu-24.04")]) -> hm.Step:
-    return base.sh("apt-get update").sh("apt-get install -y curl")
+    return base.sh("apt-get update").sh("apt-get install -y python3")
+
 
 @hm.target()
-def api(apt_base: hm.Target[hm.Step]) -> hm.Step:
-    return apt_base.sh("cabal build", cwd="api")
+def api(ghc: hm.Target[HaskellToolchain]) -> HaskellPackage:
+    return ghc.cabal(path="api")
+
 
 @hm.pipeline("ci")
-def ci(api: hm.Target[hm.Step]) -> hm.Step:
-    return api
+def ci(
+    apt_base: hm.Target[hm.Step],
+    api: hm.Target[HaskellPackage],
+) -> tuple[hm.Step, ...]:
+    return (apt_base.sh("./run-smoke"), api)
 ```
 
-Markers are required for every fixture parameter — unmarked params
-raise at decoration time. Both `Target[T]` and `BaseImage(...)` use
-standard PEP 593 `Annotated`; mypy and pyright unwrap them to their
-concrete types (`assert_type(apt_base, Step)` passes under
-`mypy --strict`).
+Every fixture parameter must carry a marker or default value; unmarked parameters raise at decoration time. Memoization scope is one `dump_registry_json` render, so two targets that depend on the same `apt_base` share a single step.
 
-Once the file is in place, run the pipeline with the [Harmont CLI](https://github.com/harmont-dev/harmont-cli):
-
-```sh
-hm run hello --local
-```
-
-## How it works
+<details>
+<summary>How rendering works</summary>
 
 `hm.sh(...).sh(...)` builds a chain of frozen `Step` dataclasses. Each `.sh()` returns a new `Step` carrying the parent reference. The `hm.pipeline()` factory walks back from each leaf, topo-sorts, and emits a `version: "0"` IR dict matching the schema in `harmont-pipeline` (Haskell side).
 
 When used as a decorator, `@hm.pipeline("slug")` registers the wrapped function with a module-level registry. `hm.dump_registry_json()` walks every `.harmont/*.py`, imports each (which triggers the decorators), and returns the full envelope.
 
-The JSON wire format and cache-key algorithm are stable; see the module docstrings under `harmont/` for the contract.
+A chain edge — `parent.sh(cmd, ...)` — emits `builds_in: "<parent key>"` in the v0 IR JSON. The edge encodes synchronisation and state inheritance: the local executor reuses the parent's container; the cloud planner boots from its snapshot. A step rooted at `scratch()` has `builds_in: null` and boots from `image="..."` (or the pipeline's `default_image`) locally; the cloud planner ignores `image` (it always boots from the Freestyle base).
+
+The JSON wire format and cache-key algorithm are stable; see module docstrings under `harmont/` for the contract.
+
+</details>
 
 ## Build & test
 
@@ -139,7 +154,7 @@ ruff check .
 
 ## See also
 
-- [`harmont-cli`](https://github.com/harmont-dev/harmont-cli) — the CLI that consumes the JSON this package emits and runs pipelines locally with Docker (`hm run --local`).
+- [`harmont-cli`](https://github.com/harmont-dev/harmont-cli) — the CLI that runs pipelines defined with this package (`hm run`).
 
 ## License
 
