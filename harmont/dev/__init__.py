@@ -11,6 +11,7 @@ Public surface (grows across tasks):
 """
 from __future__ import annotations
 
+from ._deployment import LocalDeployment
 from ._port import port
 
-__all__ = ["port"]
+__all__ = ["LocalDeployment", "port"]
