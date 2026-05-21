@@ -94,8 +94,16 @@ def _make_python(
         image=image,
         base=base,
     )
+    # `--all-extras` pulls every `[project.optional-dependencies]`
+    # group declared in pyproject.toml. This matters because the
+    # action surface (`.lint()`, `.fmt()`, `.typecheck()`, `.test()`)
+    # depends on tools like `ruff`, `mypy`, `pytest` that authors
+    # almost always declare under an `[optional-dependencies] dev`
+    # extra rather than as runtime deps. Without `--all-extras`,
+    # `uv sync` only installs runtime deps and every action step
+    # fails with `Failed to spawn: <tool>: No such file or directory`.
     synced = uv_installed.sh(
-        f"cd {path} && uv sync",
+        f"cd {path} && uv sync --all-extras",
         label=":python: uv-sync",
         cache=CacheOnChange(paths=(f"{path}/uv.lock", f"{path}/pyproject.toml")),
     )
