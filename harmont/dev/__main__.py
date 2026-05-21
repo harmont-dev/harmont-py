@@ -56,8 +56,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if not args.dump_registry:
+        # parser.error() is NoReturn (calls sys.exit(2)); execution stops here.
         parser.error("nothing to do; pass --dump-registry")
-        return 2
 
     from harmont.dev import dump_registry_json
 
