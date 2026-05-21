@@ -20,7 +20,7 @@ def test_deployment_is_abstract_dataclass():
 # ---------------------------------------------------------------------------
 from collections.abc import Mapping
 
-from harmont._step import Step, scratch
+from harmont._step import scratch
 from harmont.dev import port
 from harmont.dev._deployment import LocalDeployment
 from harmont.dev._port import _PortSentinel
