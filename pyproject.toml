@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "harmont"
-version = "0.1.0"
+version = "0.0.0-dev"
 description = "Python DSL for Harmont CI pipelines — emits v0 IR JSON"
 license = "MIT"
 license-files = ["LICENSE"]
