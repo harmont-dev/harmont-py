@@ -1,18 +1,21 @@
 """OCaml toolchain abstraction.
 
 Chain: scratch -> apt-base (opam + build deps) -> opam-init (opam switch
-create <compiler>; installs project deps via ``opam install . --deps-only``
-when the project has an .opam file) -> action leaves driven by dune.
+create <compiler>; installs dune + ocamlformat, cached forever per
+compiler version) -> opam-deps (per-project ``opam install . --deps-only``
+when an .opam file exists, cached on the .opam files) -> action leaves
+driven by dune.
 """
 
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from ._toolchain import make_install_chain
-from .cache import CacheForever
+from .cache import CacheForever, CacheOnChange
 
 if TYPE_CHECKING:
     from ._step import Step
@@ -84,7 +87,7 @@ def _make_ocaml(
             '  → use a compiler version like "5.1.1"'
         )
         raise ValueError(msg)
-    installed = make_install_chain(
+    opam = make_install_chain(
         apt_packages=APT_PACKAGES,
         install_cmd=_opam_init_cmd(compiler),
         install_cache=CacheForever(env_keys=()),
@@ -93,7 +96,26 @@ def _make_ocaml(
         image=image,
         base=base,
     )
-    return OCamlProject(path=path, installed=installed)
+    # Per-project deps step: install opam dependencies declared in any
+    # .opam files at `path`. Cached on those files so unchanged manifests
+    # short-circuit. Falls through harmlessly when there are no .opam
+    # files (the shell glob expands to nothing and `opam install` is
+    # skipped via the `[ -n "$o" ]` guard).
+    opam_files = tuple(sorted(p.as_posix() for p in Path(path).glob("*.opam")))
+    deps_cmd = (
+        f"cd {path} && "
+        "if ls *.opam >/dev/null 2>&1; then "
+        "  opam install -y . --deps-only --with-test; "
+        "else "
+        '  echo "no .opam files; skipping deps"; '
+        "fi"
+    )
+    deps = opam.sh(
+        deps_cmd,
+        label=":ocaml: deps",
+        cache=CacheOnChange(paths=opam_files) if opam_files else CacheForever(env_keys=()),
+    )
+    return OCamlProject(path=path, installed=deps)
 
 
 class _OCamlEntry:
