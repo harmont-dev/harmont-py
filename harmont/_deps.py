@@ -166,11 +166,11 @@ def resolve_deps(fn: Callable[..., Any]) -> dict[str, Any]:
 
             if param.name not in DEPLOYMENTS:
                 msg = (
-                    f"hm.Dep parameter {param.name!r} refers to no registered "
-                    f"@hm.deploy — register one with that slug, or pass "
-                    '`name="..."` to disambiguate.'
+                    f"hm: deployment {param.name!r} not found\n"
+                    "  → declare it with @hm.deploy() or rename the "
+                    "parameter to match an existing deployment"
                 )
-                raise ValueError(msg)
+                raise TypeError(msg)
             kwargs[param.name] = DEPLOYMENTS[param.name]()
             continue
         if param.default is not inspect.Parameter.empty:

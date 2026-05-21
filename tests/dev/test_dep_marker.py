@@ -6,6 +6,7 @@ import pytest
 from harmont import Dep
 from harmont._deploy import DEPLOYMENTS, Deployment
 from harmont._deps import call_with_deps
+from harmont._typing import _DepMarker
 
 
 def test_dep_marker_alias_subscripts_to_annotated():
@@ -17,6 +18,7 @@ def test_dep_marker_alias_subscripts_to_annotated():
     assert get_origin(T) is not None
     args = get_args(T)
     assert args[0] is Deployment
+    assert isinstance(args[1], _DepMarker)
 
 
 def test_call_with_deps_resolves_dep_param_from_DEPLOYMENTS():
@@ -35,5 +37,6 @@ def test_call_with_deps_raises_when_dep_unknown():
     def consumer(redis: Dep[Deployment]) -> Deployment:
         return redis
 
-    with pytest.raises(ValueError, match="hm.Dep parameter 'redis' refers to"):
+    # Matches the Target precedent: TypeError + "hm: <kind> 'name' not found".
+    with pytest.raises(TypeError, match="hm: deployment 'redis' not found"):
         call_with_deps(consumer)

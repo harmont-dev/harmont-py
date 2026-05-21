@@ -98,9 +98,11 @@ def BaseImage(image: str) -> _BaseImageMarker:  # noqa: N802 — factory mimicki
 
 
 class _DepMarker:
-    """Sentinel for Annotated metadata. Marks a parameter as a
-    dependency on another @hm.deploy by parameter name. The injected
-    value is the resolved Deployment.
+    """Sentinel class for Annotated metadata. Marks a parameter as a
+    dependency on another @hm.deploy by parameter name; the injected
+    value is the resolved Deployment. The module-level instance
+    ``_DEP_MARKER`` is the actual sentinel value embedded in
+    ``Annotated[T, _DEP_MARKER]`` by the ``Dep`` alias.
     """
 
     __slots__ = ()
