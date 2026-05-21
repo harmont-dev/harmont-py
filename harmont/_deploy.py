@@ -9,15 +9,12 @@ by ``isinstance`` or by the ``driver`` discriminator.
 from __future__ import annotations
 
 import dataclasses
-import inspect
 import re
-import typing
 from dataclasses import dataclass
 from functools import wraps
 from typing import TYPE_CHECKING, Any
 
-from ._deps import call_with_deps
-from ._typing import _TARGET_MARKER, _BaseImageMarker, _DepMarker
+from ._deps import call_with_deps, validate_target_signature
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -53,77 +50,6 @@ def _validate_slug(slug: str) -> None:
         raise ValueError(msg)
 
 
-def _validate_deploy_signature(fn: Callable[..., Any]) -> None:
-    """Decoration-time validation for @hm.deploy functions.
-
-    Raises ValueError (not TypeError) with a deploy-specific message so
-    callers see a clean, deploy-oriented error distinct from the
-    @hm.target TypeError surface.
-
-    Rules:
-      - No ``*args``, ``**kwargs``, or positional-only parameters.
-      - Every parameter must carry an hm marker (``Target[T]``,
-        ``BaseImage[...]``, ``Dep[T]``) or have a default value.
-    """
-    sig = inspect.signature(fn)
-    hints: dict[str, Any]
-    try:
-        hints = typing.get_type_hints(fn, include_extras=True)
-    except Exception:
-        hints = dict(getattr(fn, "__annotations__", {}))
-
-    for param in sig.parameters.values():
-        kind = param.kind
-        if kind == inspect.Parameter.VAR_POSITIONAL:
-            msg = (
-                "hm: @hm.deploy functions cannot take *args\n"
-                "  → declare each dependency as an explicit named parameter"
-            )
-            raise ValueError(msg)
-        if kind == inspect.Parameter.VAR_KEYWORD:
-            msg = (
-                "hm: @hm.deploy functions cannot take **kwargs\n"
-                "  → declare each dependency as an explicit named parameter"
-            )
-            raise ValueError(msg)
-        if kind == inspect.Parameter.POSITIONAL_ONLY:
-            msg = (
-                f"hm: @hm.deploy functions cannot have positional-only "
-                f"parameters (got {param.name!r})\n"
-                "  → remove the '/' marker; parameters must be name-resolvable"
-            )
-            raise ValueError(msg)
-
-        annotation = hints.get(param.name)
-        # Check for any recognized hm marker.
-        marker = _marker_for(annotation)
-        if marker is not None:
-            continue
-        if param.default is not inspect.Parameter.empty:
-            continue
-        msg = (
-            f"hm: parameter {param.name!r} on {fn.__qualname__} must carry a marker\n"
-            "  → annotate with Dep[T] (deployment dep), Target[T] (target dep), "
-            'or BaseImage["..."] (scratch image), or give it a default'
-        )
-        raise ValueError(msg)
-
-
-def _marker_for(annotation: Any) -> object | None:
-    """Return the hm-specific marker from an Annotated annotation, or None."""
-    if typing.get_origin(annotation) is None:
-        return None
-    metadata = typing.get_args(annotation)[1:]
-    for meta in metadata:
-        if meta is _TARGET_MARKER:
-            return _TARGET_MARKER
-        if isinstance(meta, _BaseImageMarker):
-            return meta
-        if isinstance(meta, _DepMarker):
-            return meta
-    return None
-
-
 def deploy(
     slug: str | None = None,
     *,
@@ -133,9 +59,8 @@ def deploy(
 
     The wrapped function returns a :class:`Deployment` (typically the
     output of :func:`harmont.dev.deploy` or any future driver's factory).
-    Parameters are resolved via the markers used by ``@hm.target`` and
-    ``@hm.pipeline``, plus ``hm.Dep[T]`` for deployment-to-deployment
-    references.
+    Parameters are resolved via the shared marker machinery: ``Target[T]``,
+    ``BaseImage[...]``, and ``Dep[T]`` (deployment-to-deployment refs).
 
     Usage::
 
@@ -152,21 +77,21 @@ def deploy(
             )
 
     Args:
-        slug: Registry key for this deployment. Must match
-              ``^[a-z][a-z0-9-]{0,30}$`` (Docker container-name rules).
-              Defaults to the decorated function's ``__name__``.
+        slug: Registry key. Must match ``^[a-z][a-z0-9-]{0,30}$``
+              (Docker container-name rules). Defaults to ``fn.__name__``.
         name: Reserved for future use as a human-readable display name.
               Has no effect in v1; the slug is the public identity.
 
     Raises:
-        ValueError: On invalid slug, duplicate slug, or an unmarkered
-                    parameter with no default.
-        TypeError: If the wrapped function returns a non-:class:`Deployment`
-                   value at call time.
+        ValueError: On invalid or duplicate slug.
+        TypeError: On unmarkered parameters without defaults (raised by
+                   the shared :func:`validate_target_signature`), or if
+                   the wrapped function returns a non-Deployment value.
     """
+    del name  # reserved-for-future-use; explicitly drop the unused binding
 
     def decorator(fn: "Callable[..., Any]") -> "Callable[[], Deployment]":
-        _validate_deploy_signature(fn)
+        validate_target_signature(fn)
         resolved_slug = slug if slug is not None else fn.__name__
         _validate_slug(resolved_slug)
         if resolved_slug in DEPLOYMENTS:

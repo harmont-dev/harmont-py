@@ -47,7 +47,9 @@ def test_deploy_rejects_duplicate_slug():
 
 
 def test_deploy_requires_marker_on_param():
-    with pytest.raises(ValueError, match=r"parameter 'db' on .* must carry a marker"):
+    # validate_target_signature (the shared validator used by @hm.target,
+    # @hm.pipeline, and @hm.deploy) raises TypeError for unmarkered params.
+    with pytest.raises(TypeError, match=r"parameter 'db' has no marker"):
         @hm.deploy("api")
         def api(db):  # type: ignore[no-untyped-def]
             return hm.dev.deploy(image="x", port_mapping={8000: hm.dev.port()})
