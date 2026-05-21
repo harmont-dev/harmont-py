@@ -20,7 +20,7 @@ import typing
 from typing import TYPE_CHECKING, Any
 
 from ._step import Step
-from ._typing import _TARGET_MARKER, _BaseImageMarker
+from ._typing import _DEP_MARKER, _TARGET_MARKER, _BaseImageMarker, _DepMarker
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -73,8 +73,8 @@ def _param_kind_error(param: inspect.Parameter) -> str | None:
 
 def _marker_for(annotation: Any) -> object | None:
     """Inspect an `Annotated[T, ...]` annotation and return the
-    hm-specific marker (a `_TargetMarker` or `_BaseImageMarker`) if
-    present, else None."""
+    hm-specific marker (a `_TargetMarker`, `_BaseImageMarker`, or
+    `_DepMarker`) if present, else None."""
     if typing.get_origin(annotation) is None:
         return None
     metadata = typing.get_args(annotation)[1:]
@@ -82,6 +82,8 @@ def _marker_for(annotation: Any) -> object | None:
         if meta is _TARGET_MARKER:
             return _TARGET_MARKER  # type: ignore[no-any-return]
         if isinstance(meta, _BaseImageMarker):
+            return meta
+        if isinstance(meta, _DepMarker):
             return meta
     return None
 
@@ -157,6 +159,19 @@ def resolve_deps(fn: Callable[..., Any]) -> dict[str, Any]:
             continue
         if isinstance(marker, _BaseImageMarker):
             kwargs[param.name] = Step(image=marker.image)
+            continue
+        if isinstance(marker, _DepMarker):
+            # Local import to avoid circular: _deploy imports nothing from us.
+            from ._deploy import DEPLOYMENTS
+
+            if param.name not in DEPLOYMENTS:
+                msg = (
+                    f"hm.Dep parameter {param.name!r} refers to no registered "
+                    f"@hm.deploy — register one with that slug, or pass "
+                    '`name="..."` to disambiguate.'
+                )
+                raise ValueError(msg)
+            kwargs[param.name] = DEPLOYMENTS[param.name]()
             continue
         if param.default is not inspect.Parameter.empty:
             kwargs[param.name] = param.default
