@@ -20,7 +20,7 @@ import typing
 from typing import TYPE_CHECKING, Any
 
 from ._step import Step
-from ._typing import _DEP_MARKER, _TARGET_MARKER, _BaseImageMarker, _DepMarker
+from ._typing import _TARGET_MARKER, _BaseImageMarker, _DepMarker
 
 if TYPE_CHECKING:
     from collections.abc import Callable
