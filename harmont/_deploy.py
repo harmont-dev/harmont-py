@@ -121,3 +121,69 @@ def deploy(
         return wrapper
 
     return decorator
+
+
+def dep_graph() -> dict[str, tuple[str, ...]]:
+    """Return slug -> tuple of upstream slugs, in parameter order.
+
+    Walks DEPLOYMENTS; for each registered slug, introspects the wrapped
+    function's signature for ``Dep[T]`` parameters. Plain defaults and
+    Target/BaseImage markers do not produce edges in the deploy graph.
+    """
+    import inspect
+    import typing as _typing
+
+    from ._typing import _DepMarker
+
+    out: dict[str, tuple[str, ...]] = {}
+    for slug, wrapper in DEPLOYMENTS.items():
+        fn = wrapper.__wrapped__  # type: ignore[attr-defined]
+        sig = inspect.signature(fn)
+        hints = _typing.get_type_hints(fn, include_extras=True)
+        deps: list[str] = []
+        for name in sig.parameters:
+            ann = hints.get(name)
+            if ann is None:
+                continue
+            if _typing.get_origin(ann) is None:
+                continue
+            metadata = _typing.get_args(ann)[1:]
+            if any(isinstance(m, _DepMarker) for m in metadata):
+                deps.append(name)
+        out[slug] = tuple(deps)
+    return out
+
+
+def topo_order() -> list[str]:
+    """Topological ordering of DEPLOYMENTS by dep_graph; deps first.
+
+    Raises RuntimeError on cycles. Stable under insertion order for
+    independent slugs (preserves decoration order within a level).
+    """
+    g = dep_graph()
+    # Kahn's algorithm w/ stable level ordering (insertion-order of g).
+    indeg: dict[str, int] = {}
+    for slug, upstreams in g.items():
+        indeg[slug] = sum(1 for u in upstreams if u in g)
+    order: list[str] = []
+    while True:
+        progressed = False
+        for slug in list(g.keys()):
+            if slug in order:
+                continue
+            if indeg[slug] == 0:
+                order.append(slug)
+                for downstream, upstreams in g.items():
+                    if slug in upstreams and downstream not in order:
+                        indeg[downstream] -= 1
+                progressed = True
+        if not progressed:
+            break
+    if len(order) != len(g):
+        unresolved = [s for s in g if s not in order]
+        msg = (
+            f"hm: dep cycle among deployments: {', '.join(unresolved)}\n"
+            "  → break the cycle, or factor shared state into a target"
+        )
+        raise RuntimeError(msg)
+    return order
