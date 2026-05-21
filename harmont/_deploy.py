@@ -97,8 +97,8 @@ def deploy(
         if resolved_slug in DEPLOYMENTS:
             msg = (
                 f"hm: duplicate deployment slug {resolved_slug!r}\n"
-                "  → each @hm.deploy must have a unique slug; pass an "
-                "explicit slug or `name=\"...\"` to disambiguate"
+                "  → each @hm.deploy must have a unique slug; "
+                "pass an explicit slug= to disambiguate"
             )
             raise ValueError(msg)
 
