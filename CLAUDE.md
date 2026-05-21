@@ -98,7 +98,8 @@ cmake(path=..., lang="c"|"cpp")                   # -> CMakeProject
 dotnet(path=..., channel="8.0")                   # -> DotnetProject
 ruby(path=..., version="default")                 # -> RubyProject
 ocaml(path=..., compiler="5.1.1")                 # -> OCamlProject
-zig(path=..., version="0.13.0")                   # -> ZigProject
+zig(version="0.13.0")                             # -> ZigToolchain (zig project via .project(path))
+zig(path=..., version="0.13.0")                   # -> ZigProject (one-shot)
 perl(path=...)                                    # -> PerlProject
 composer(path=..., laravel=False)                 # -> ComposerProject  (PHP + Laravel)
 ```

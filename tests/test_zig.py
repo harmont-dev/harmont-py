@@ -48,9 +48,9 @@ def test_zig_invalid_version_rejected():
 
 def test_zig_action_labels_auto_generated():
     z = hm.zig(path=".")
-    assert z.build().label == ":zig: build"
-    assert z.test().label == ":zig: test"
-    assert z.fmt().label == ":zig: fmt"
+    assert z.build().label == ":zig: . build"
+    assert z.test().label == ":zig: . test"
+    assert z.fmt().label == ":zig: . fmt"
 
 
 def test_zig_bare_form_actions():
