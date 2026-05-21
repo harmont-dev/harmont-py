@@ -29,7 +29,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from . import _decorator
+from . import _decorator, dev
+from ._deploy import Deployment, deploy
 from ._envelope import dump_registry_json
 from ._step import Step, scratch, wait
 from ._target import clear_target_cache, target  # noqa: F401  clear_target_cache used by tests
@@ -135,12 +136,15 @@ __all__ = [
     "CachePolicy",
     "CacheTTL",
     "Dep",
+    "Deployment",
     "Pipeline",
     "Step",
     "Target",
     "cmake",
     "compose",
     "composer",
+    "deploy",
+    "dev",
     "dotnet",
     "dump_registry_json",
     "elm",
