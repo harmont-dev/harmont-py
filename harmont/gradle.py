@@ -1,13 +1,22 @@
 """Gradle (Java/Kotlin) toolchain.
 
 Chain: scratch -> apt-base (curl, openjdk-<N>-jdk-headless) -> jdk-verify
-(``java -version`` smoke test, cached forever) -> action leaves running
-./gradlew. The verify step lets `make_install_chain` enforce its standard
-shape even though the JDK install happens via apt; it also gives the
-pipeline UI a single named step that confirms the JDK is operational.
-The Gradle wrapper is expected to live in the project
-(./gradlew, ./gradlew.bat). The ``kotlin=True`` flag swaps the
-label prefix only — Gradle drives both languages identically.
+(``java -version && gradle --version`` smoke test, cached forever) ->
+action leaves running ``gradle`` directly. The verify step lets
+``make_install_chain`` enforce its standard shape even though the
+JDK install happens via apt; it also gives the pipeline UI a single
+named step that confirms the JDK is operational.
+
+Gradle itself is installed from the official distribution zip into
+``/opt/gradle`` and symlinked onto PATH. We deliberately do NOT rely
+on a project-shipped ``./gradlew`` wrapper: for the examples and
+small projects we want a working pipeline out of the box, not a
+chicken-and-egg requirement that the user pre-populate ``gradlew``.
+Pipelines that do ship a wrapper can still invoke it from their
+own step layered on ``gradle.installed``.
+
+The ``kotlin=True`` flag swaps the label prefix only — Gradle drives
+both languages identically.
 """
 
 from __future__ import annotations
@@ -26,9 +35,24 @@ _ACTION_KWARGS = frozenset(("cache", "env", "timeout_seconds", "label", "key"))
 
 _JDK_RE = re.compile(r"^(11|17|21)$")
 
+# Pinned Gradle version — bumping requires re-running the example
+# pipelines locally to confirm tasks still work; older Gradle releases
+# may not support newer Kotlin/Java toolchain features.
+_GRADLE_VERSION = "8.10"
+
 
 def _apt_packages(jdk: str) -> tuple[str, ...]:
-    return ("curl", "ca-certificates", f"openjdk-{jdk}-jdk-headless")
+    return ("curl", "ca-certificates", "unzip", f"openjdk-{jdk}-jdk-headless")
+
+
+def _install_cmd() -> str:
+    return (
+        f"curl -fsSL https://services.gradle.org/distributions/"
+        f"gradle-{_GRADLE_VERSION}-bin.zip -o /tmp/gradle.zip && "
+        "unzip -q /tmp/gradle.zip -d /opt && "
+        f"ln -sf /opt/gradle-{_GRADLE_VERSION}/bin/gradle /usr/local/bin/gradle && "
+        "rm /tmp/gradle.zip && java -version && gradle --version"
+    )
 
 
 @dataclass(frozen=True)
@@ -44,17 +68,17 @@ class GradleProject:
 
     def build(self, **kw: Any) -> Step:
         return self._emit(
-            f"cd {self.path} && ./gradlew build", f":{self._tag}: build", **kw,
+            f"cd {self.path} && gradle build", f":{self._tag}: build", **kw,
         )
 
     def test(self, **kw: Any) -> Step:
         return self._emit(
-            f"cd {self.path} && ./gradlew test", f":{self._tag}: test", **kw,
+            f"cd {self.path} && gradle test", f":{self._tag}: test", **kw,
         )
 
     def lint(self, **kw: Any) -> Step:
         return self._emit(
-            f"cd {self.path} && ./gradlew check", f":{self._tag}: lint", **kw,
+            f"cd {self.path} && gradle check", f":{self._tag}: lint", **kw,
         )
 
 
@@ -75,7 +99,7 @@ def _make_gradle(
     tag = "kotlin" if kotlin else "java"
     installed = make_install_chain(
         apt_packages=_apt_packages(jdk),
-        install_cmd="java -version && which java",
+        install_cmd=_install_cmd(),
         install_cache=CacheForever(env_keys=()),
         lang_tag=tag,
         install_tag="jdk",
