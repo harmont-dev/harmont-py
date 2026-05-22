@@ -41,7 +41,6 @@ def test_pipeline_with_shared_toolchain_emits_one_install() -> None:
     ZigToolchain must emit exactly one :zig: install node in the IR."""
     import harmont._registry as reg
     import harmont._target as targets
-    import harmont._deps as deps
     reg.clear_registry()
     targets.clear_target_cache()
 

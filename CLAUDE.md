@@ -192,6 +192,59 @@ Memoization scope is one `dump_registry_json` render. Two targets
 that both depend on `apt_base` share the same `Step`, so the v0 IR
 contains one apt-base step with N children — not N copies.
 
+## Deployments — `@hm.deploy` and `hm.dev`
+
+`@hm.deploy` is a driver-agnostic decorator that registers a function
+as a long-lived service. The function returns a `Deployment` value
+produced by a driver-specific factory; v1 ships only the local Docker
+driver via `hm.dev.deploy(...)`. Future cloud drivers (`hm.aws.deploy`,
+`hm.fly.deploy`) plug in without touching the top-level decorator.
+
+```python
+import harmont as hm
+
+@hm.deploy("hello")
+def hello() -> hm.Deployment:
+    return hm.dev.deploy(
+        image="python:3.12-alpine",
+        cmd=["python", "-m", "http.server", "5678"],
+        port_mapping={5678: hm.dev.port()},
+    )
+
+@hm.deploy("greeter")
+def greeter(hello: hm.Dep[hm.Deployment]) -> hm.Deployment:
+    return hm.dev.deploy(
+        image="python:3.12-alpine",
+        cmd=["python", "-m", "http.server", "5678"],
+        port_mapping={5678: hm.dev.port()},
+        env={"HELLO_HOST": hello.name},
+    )
+```
+
+Public surface:
+
+```python
+hm.deploy(slug=None, *, name=None)                 # decorator
+hm.Dep[T]                                           # PEP-593 fixture marker
+hm.Deployment                                       # abstract dataclass
+
+hm.dev.deploy(*, image=None, from_=None, cmd=None,
+              port_mapping=None, env=None,
+              volumes=None, workdir=None)           # -> LocalDeployment
+hm.dev.port()                                       # OS-assigned host port sentinel
+hm.dev.LocalDeployment                              # concrete subclass
+hm.dev.dump_registry_json(*, worktree_root)         # -> v0 JSON
+```
+
+`hm.dev.port()` is only valid as a value in `port_mapping`. The host
+port is assigned by Docker (via `-p :<container_port>`) at `hm dev up`
+time; query it from another terminal with `hm dev port-of <slug>
+<container_port>`. Ports are fresh on every `hm dev up`.
+
+The Rust CLI (`hm dev up`) shells out to `python -m harmont.dev
+--dump-registry` to obtain the registry JSON. Schema is at
+`docs/superpowers/specs/2026-05-21-hm-dev-deploy-design.md` § 1.
+
 ## Cache keys
 
 `harmont.keygen.resolve_pipeline_keys` ports the algorithm previously
