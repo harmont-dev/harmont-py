@@ -203,23 +203,21 @@ driver via `hm.dev.deploy(...)`. Future cloud drivers (`hm.aws.deploy`,
 ```python
 import harmont as hm
 
-@hm.deploy("db")
-def db() -> hm.Deployment:
+@hm.deploy("hello")
+def hello() -> hm.Deployment:
     return hm.dev.deploy(
-        image="postgres:16",
-        port_mapping={5432: hm.dev.port()},
-        env={"POSTGRES_PASSWORD": "dev"},
+        image="python:3.12-alpine",
+        cmd=["python", "-m", "http.server", "5678"],
+        port_mapping={5678: hm.dev.port()},
     )
 
-@hm.deploy("api")
-def api(
-    db: hm.Dep[hm.Deployment],
-    api_image: hm.Target[hm.Step],
-) -> hm.Deployment:
+@hm.deploy("greeter")
+def greeter(hello: hm.Dep[hm.Deployment]) -> hm.Deployment:
     return hm.dev.deploy(
-        from_=api_image,
-        port_mapping={8000: hm.dev.port()},
-        env={"DATABASE_URL": f"postgres://{db.name}:5432/app"},
+        image="python:3.12-alpine",
+        cmd=["python", "-m", "http.server", "5678"],
+        port_mapping={5678: hm.dev.port()},
+        env={"HELLO_HOST": hello.name},
     )
 ```
 

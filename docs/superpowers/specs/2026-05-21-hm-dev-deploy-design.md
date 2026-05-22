@@ -61,30 +61,21 @@ hm.dev.dump_registry_json()                         # -> str (driver-filtered fo
 ```python
 import harmont as hm
 
-@hm.target()
-def api_image() -> hm.Step:
-    return hm.sh("docker build -t myapi .", image="docker:24")
-
-@hm.deploy("db")
-def db() -> hm.Deployment:
+@hm.deploy("hello")
+def hello() -> hm.Deployment:
     return hm.dev.deploy(
-        image="postgres:16",
-        cmd=["postgres", "-c", "shared_buffers=128MB"],
-        port_mapping={5432: hm.dev.port()},
-        env={"POSTGRES_PASSWORD": "dev"},
+        image="python:3.12-alpine",
+        cmd=["python", "-m", "http.server", "5678"],
+        port_mapping={5678: hm.dev.port()},
     )
 
-@hm.deploy("api")
-def api(
-    db: hm.Dep[hm.Deployment],
-    api_image: hm.Target[hm.Step],
-) -> hm.Deployment:
+@hm.deploy("greeter")
+def greeter(hello: hm.Dep[hm.Deployment]) -> hm.Deployment:
     return hm.dev.deploy(
-        from_=api_image,
-        port_mapping={8000: hm.dev.port()},
-        env={"DATABASE_URL": f"postgres://{db.name}:5432/app"},
-        volumes={".": "/workspace"},
-        workdir="/workspace",
+        image="python:3.12-alpine",
+        cmd=["python", "-m", "http.server", "5678"],
+        port_mapping={5678: hm.dev.port()},
+        env={"HELLO_HOST": hello.name},
     )
 ```
 
@@ -576,15 +567,18 @@ exit 4
 # In a temp dir
 mkdir -p .harmont && cat > .harmont/pipelines.py <<'EOF'
 import harmont as hm
-@hm.deploy("db")
-def db():
-    return hm.dev.deploy(image="postgres:16",
-                         port_mapping={5432: hm.dev.port()},
-                         env={"POSTGRES_PASSWORD": "dev"})
+
+@hm.deploy("hello")
+def hello():
+    return hm.dev.deploy(
+        image="python:3.12-alpine",
+        cmd=["python", "-m", "http.server", "5678"],
+        port_mapping={5678: hm.dev.port()},
+    )
 EOF
-hm dev up db &
-sleep 5
-PGPASSWORD=dev psql -h localhost -p $(hm dev port-of db 5432) -U postgres -c 'select 1'
+hm dev up hello &
+sleep 2
+curl -fsS "http://localhost:$(hm dev port-of hello 5678)" | grep -q "Directory listing"
 kill %1; wait
 hm dev ls   # should show nothing running
 ```

@@ -2206,64 +2206,38 @@ A final integration test that mirrors the spec's canonical example. Confirms eve
 In `tests/dev/test_canonical_example.py`:
 
 ```python
-"""End-to-end test mirroring the spec's canonical db+api+web example."""
-from __future__ import annotations
-
-import json
-from pathlib import Path
-
-import harmont as hm
-
-
-def test_canonical_db_api_web_dumps_expected_shape():
-    @hm.target()
-    def api_image() -> hm.Step:
-        return hm.sh("docker build -t myapi .", image="docker:24")
-
-    @hm.deploy("db")
-    def db() -> hm.Deployment:
+def test_canonical_hello_greeter_dumps_expected_shape():
+    @hm.deploy("hello")
+    def hello() -> hm.Deployment:
         return hm.dev.deploy(
-            image="postgres:16",
-            cmd=["postgres", "-c", "shared_buffers=128MB"],
-            port_mapping={5432: hm.dev.port()},
-            env={"POSTGRES_PASSWORD": "dev"},
+            image="python:3.12-alpine",
+            cmd=["python", "-m", "http.server", "5678"],
+            port_mapping={5678: hm.dev.port()},
         )
 
-    @hm.deploy("api")
-    def api(
-        db: hm.Dep[hm.Deployment],
-        api_image: hm.Target[hm.Step],
-    ) -> hm.Deployment:
+    @hm.deploy("greeter")
+    def greeter(hello: hm.Dep[hm.Deployment]) -> hm.Deployment:
         return hm.dev.deploy(
-            from_=api_image,
-            port_mapping={8000: hm.dev.port()},
-            env={"DATABASE_URL": f"postgres://{db.name}:5432/app"},
-            volumes={".": "/workspace"},
-            workdir="/workspace",
-        )
-
-    @hm.deploy("web")
-    def web(api: hm.Dep[hm.Deployment]) -> hm.Deployment:
-        return hm.dev.deploy(
-            image="node:20",
-            port_mapping={3000: hm.dev.port()},
-            env={"API_URL": f"http://{api.name}:8000"},
+            image="python:3.12-alpine",
+            cmd=["python", "-m", "http.server", "5678"],
+            port_mapping={5678: hm.dev.port()},
+            env={"HELLO_HOST": hello.name},
         )
 
     raw = hm.dev.dump_registry_json(worktree_root=Path("/tmp/wt"))
     out = json.loads(raw)
     assert out["schema_version"] == "0"
-    assert list(out["deployments"].keys()) == ["db", "api", "web"]  # topo order
-    assert out["deployments"]["api"]["deps"] == ["db"]
-    assert out["deployments"]["web"]["deps"] == ["api"]
-    assert out["deployments"]["api"]["env"]["DATABASE_URL"] == "postgres://db:5432/app"
-    assert out["deployments"]["web"]["env"]["API_URL"] == "http://api:8000"
-    # Step-chain `from_=` lowered through the existing v0 IR machinery
-    api_from = out["deployments"]["api"]["from"]
-    assert api_from["type"] == "step_chain"
-    assert api_from["pipeline_v0"]["version"] == "0"
-    assert any(s.get("cmd", "").startswith("docker build")
-               for s in api_from["pipeline_v0"]["steps"])
+    assert list(out["deployments"].keys()) == ["hello", "greeter"]  # topo order
+    assert out["deployments"]["greeter"]["deps"] == ["hello"]
+    assert out["deployments"]["hello"]["image"] == "python:3.12-alpine"
+    assert out["deployments"]["hello"]["cmd"] == [
+        "python", "-m", "http.server", "5678",
+    ]
+    assert out["deployments"]["greeter"]["env"] == {"HELLO_HOST": "hello"}
+    # No Step-chain in the new example (from_= is stubbed in v1 cli);
+    # both entries have from=None.
+    assert out["deployments"]["hello"]["from"] is None
+    assert out["deployments"]["greeter"]["from"] is None
 ```
 
 - [ ] **Step 2: Run only this test**
