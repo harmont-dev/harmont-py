@@ -6,9 +6,12 @@ cloning harmont-cli.
 from __future__ import annotations
 
 import json
-import pathlib
+from typing import TYPE_CHECKING
 
 import pytest
+
+if TYPE_CHECKING:
+    import pathlib
 
 from .examples_render_conftest import (
     harmont_cli_examples_root,

@@ -1,9 +1,15 @@
 """Abstract Deployment + LocalDeployment construction tests."""
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 import pytest
 
 from harmont._deploy import Deployment
+from harmont._step import scratch
+from harmont.dev import port
+from harmont.dev._deployment import LocalDeployment
+from harmont.dev._port import _PortSentinel
 
 
 def test_deployment_is_abstract_dataclass():
@@ -11,19 +17,13 @@ def test_deployment_is_abstract_dataclass():
     d = Deployment(name="db", driver="local")
     assert d.name == "db"
     assert d.driver == "local"
-    with pytest.raises(Exception):
+    with pytest.raises(AttributeError):
         d.name = "other"  # type: ignore[misc]  # frozen
 
 
 # ---------------------------------------------------------------------------
 # Task 3: LocalDeployment tests
 # ---------------------------------------------------------------------------
-from collections.abc import Mapping
-
-from harmont._step import scratch
-from harmont.dev import port
-from harmont.dev._deployment import LocalDeployment
-from harmont.dev._port import _PortSentinel
 
 
 def test_local_deployment_is_a_deployment_with_driver_local():

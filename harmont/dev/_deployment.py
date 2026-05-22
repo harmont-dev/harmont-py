@@ -30,11 +30,11 @@ class LocalDeployment(Deployment):
     paths (with optional ``:ro`` suffix).
     """
     image: str | None
-    from_step: "Step | None"
+    from_step: Step | None
     cmd: tuple[str, ...] | None
-    port_mapping: "Mapping[int, _PortSentinel]"
-    env: "Mapping[str, str]"
-    volumes: "Mapping[str, str]"
+    port_mapping: Mapping[int, _PortSentinel]
+    env: Mapping[str, str]
+    volumes: Mapping[str, str]
     workdir: str | None
 
     def __post_init__(self) -> None:

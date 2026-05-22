@@ -7,12 +7,15 @@ in afterwards via dataclasses.replace.
 """
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
-
-from harmont._step import Step
+from typing import TYPE_CHECKING
 
 from ._deployment import LocalDeployment
 from ._port import _PortSentinel
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+
+    from harmont._step import Step
 
 
 def deploy(
@@ -36,7 +39,7 @@ def deploy(
         msg = (
             "hm.dev.deploy requires exactly one of `image=` or `from_=`, "
             f"got image={image!r}, from_={from_!r}\n"
-            "  → pick one. Use `image=\"...\"` for a published image, "
+            '  → pick one. Use `image="..."` for a published image, '
             "`from_=<Step>` to build from a Step chain."
         )
         raise ValueError(msg)
@@ -80,7 +83,7 @@ def _validate_port_mapping(
                 f"got {type(v).__name__}\n"
                 "  → use hm.dev.port() to ask the OS for a free host port"
             )
-            raise ValueError(msg)
+            raise TypeError(msg)
         result[k] = v
     return result
 
@@ -91,14 +94,14 @@ def _validate_env(env: Mapping[str, str] | None) -> Mapping[str, str]:
     for k, v in env.items():
         if not isinstance(k, str):
             msg = f"hm.dev.deploy env key must be str, got {type(k).__name__}"
-            raise ValueError(msg)
+            raise TypeError(msg)
         if not isinstance(v, str):
             msg = (
                 f"hm.dev.deploy env value for {k!r} must be str, "
                 f"got {type(v).__name__}\n"
                 "  → call str(...) at the call site so the conversion is explicit"
             )
-            raise ValueError(msg)
+            raise TypeError(msg)
     return dict(env)
 
 
@@ -133,7 +136,7 @@ def _validate_cmd(cmd: Iterable[str] | None) -> tuple[str, ...] | None:
                 f"hm.dev.deploy cmd elements must be str, got {type(x).__name__}\n"
                 "  → call str(...) at the call site so the conversion is explicit"
             )
-            raise ValueError(msg)
+            raise TypeError(msg)
     return items
 
 

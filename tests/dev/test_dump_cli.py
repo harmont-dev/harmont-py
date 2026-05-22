@@ -5,7 +5,10 @@ import json
 import subprocess
 import sys
 import textwrap
-from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def test_dump_cli_walks_harmont_dir_and_prints_registry(tmp_path: Path):

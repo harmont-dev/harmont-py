@@ -25,7 +25,6 @@ from harmont.pipeline import pipeline as _assemble
 from ._deployment import LocalDeployment
 from ._port import _PortSentinel
 
-
 _SENTINEL_WIRE = "__hm_dev_port__"
 
 
@@ -60,7 +59,7 @@ def _lower_from_step(step: Any) -> dict[str, Any]:
         pipeline_org="hm-dev",
         pipeline_slug="hm-dev-build",
         now=0,
-        base_path=Path("/tmp"),
+        base_path=Path("/tmp"),  # noqa: S108
         env={},
     )
     return {"type": "step_chain", "pipeline_v0": ir}
@@ -68,7 +67,7 @@ def _lower_from_step(step: Any) -> dict[str, Any]:
 
 def dump_registry_json(
     *,
-    worktree_root: "Path | None" = None,
+    worktree_root: Path | None = None,
 ) -> str:
     """Emit the v0 deployment-registry JSON.
 

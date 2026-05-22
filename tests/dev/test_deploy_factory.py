@@ -44,22 +44,24 @@ def test_port_mapping_keys_must_be_valid_container_ports():
 
 
 def test_port_mapping_values_must_be_hm_dev_port():
-    with pytest.raises(ValueError, match="port_mapping value must be hm.dev.port"):
+    with pytest.raises(TypeError, match=r"port_mapping value must be hm\.dev\.port"):
         deploy(image="x", port_mapping={5432: 31337})  # type: ignore[dict-item]
 
 
 def test_env_values_must_be_strings():
-    with pytest.raises(ValueError, match="env value for 'PORT' must be str"):
+    with pytest.raises(TypeError, match="env value for 'PORT' must be str"):
         deploy(image="x", port_mapping={5432: port()}, env={"PORT": 31337})  # type: ignore[dict-item]
 
 
 def test_cmd_coerces_to_tuple_of_strings():
-    d = deploy(image="x", port_mapping={5432: port()}, cmd=["postgres", "-c", "shared_buffers=128MB"])
+    d = deploy(
+        image="x", port_mapping={5432: port()}, cmd=["postgres", "-c", "shared_buffers=128MB"]
+    )
     assert d.cmd == ("postgres", "-c", "shared_buffers=128MB")
 
 
 def test_cmd_rejects_non_string_elements():
-    with pytest.raises(ValueError, match="cmd elements must be str"):
+    with pytest.raises(TypeError, match="cmd elements must be str"):
         deploy(image="x", port_mapping={5432: port()}, cmd=["postgres", 5432])  # type: ignore[list-item]
 
 

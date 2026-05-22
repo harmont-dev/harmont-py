@@ -18,9 +18,9 @@ def test_dump_minimal_local_deployment():
             env={"POSTGRES_PASSWORD": "dev"},
         )
 
-    out = json.loads(dump_registry_json(worktree_root=Path("/tmp/wt")))
+    out = json.loads(dump_registry_json(worktree_root=Path("/tmp/wt")))  # noqa: S108
     assert out["schema_version"] == "0"
-    assert out["worktree"] == "/tmp/wt"
+    assert out["worktree"] == "/tmp/wt"  # noqa: S108
     assert out["deployments"]["db"] == {
         "driver": "local",
         "image": "postgres:16",
@@ -45,7 +45,7 @@ def test_dump_with_cmd_workdir_volumes():
             workdir="/workspace",
         )
 
-    out = json.loads(dump_registry_json(worktree_root=Path("/tmp/wt")))
+    out = json.loads(dump_registry_json(worktree_root=Path("/tmp/wt")))  # noqa: S108
     e = out["deployments"]["db"]
     assert e["cmd"] == ["postgres", "-c", "shared_buffers=128MB"]
     assert e["workdir"] == "/workspace"
@@ -64,7 +64,7 @@ def test_dump_with_deps_emits_deps_array_in_param_order():
             env={"DB_HOST": db.name},
         )
 
-    out = json.loads(dump_registry_json(worktree_root=Path("/tmp/wt")))
+    out = json.loads(dump_registry_json(worktree_root=Path("/tmp/wt")))  # noqa: S108
     assert out["deployments"]["api"]["deps"] == ["db"]
     assert out["deployments"]["api"]["env"] == {"DB_HOST": "db"}
 
@@ -77,7 +77,7 @@ def test_dump_step_chain_emits_pipeline_v0_ir():
             port_mapping={8000: hm.dev.port()},
         )
 
-    out = json.loads(dump_registry_json(worktree_root=Path("/tmp/wt")))
+    out = json.loads(dump_registry_json(worktree_root=Path("/tmp/wt")))  # noqa: S108
     f = out["deployments"]["api"]["from"]
     assert f["type"] == "step_chain"
     assert f["pipeline_v0"]["version"] == "0"
@@ -89,5 +89,5 @@ def test_dump_non_local_driver_is_marked_unhandled():
     def prod_api():
         return Deployment(name="", driver="aws")
 
-    out = json.loads(dump_registry_json(worktree_root=Path("/tmp/wt")))
+    out = json.loads(dump_registry_json(worktree_root=Path("/tmp/wt")))  # noqa: S108
     assert out["deployments"]["prod-api"] == {"driver": "aws", "_unhandled": True}

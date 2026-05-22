@@ -22,7 +22,8 @@ def _import_path(path: Path) -> None:
         location=str(path),
     )
     if spec is None or spec.loader is None:
-        raise RuntimeError(f"cannot load module from {path}")
+        msg = f"cannot load module from {path}"
+        raise RuntimeError(msg)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
 
@@ -30,10 +31,9 @@ def _import_path(path: Path) -> None:
 def _walk_harmont_dir(root: Path) -> None:
     harmont_dir = root / ".harmont"
     if not harmont_dir.is_dir():
-        print(
+        sys.stderr.write(
             f"hm: no .harmont/ directory in {root}\n"
-            "  → create .harmont/ and add @hm.deploy-decorated functions",
-            file=sys.stderr,
+            "  → create .harmont/ and add @hm.deploy-decorated functions\n"
         )
         sys.exit(1)
     for py in sorted(harmont_dir.glob("*.py")):
@@ -63,7 +63,7 @@ def main(argv: list[str] | None = None) -> int:
 
     root = args.worktree_root if args.worktree_root is not None else Path.cwd()
     _walk_harmont_dir(root)
-    print(dump_registry_json(worktree_root=root))
+    sys.stdout.write(dump_registry_json(worktree_root=root) + "\n")
     return 0
 
 

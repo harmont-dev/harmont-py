@@ -11,7 +11,10 @@ import os
 import pathlib
 import sys
 from contextlib import contextmanager
-from typing import Iterator
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 def harmont_cli_examples_root() -> pathlib.Path | None:
@@ -32,8 +35,8 @@ def isolated_registry() -> Iterator[None]:
     from harmont import _deps, _registry, _target
 
     saved_regs = list(_registry.REGISTRATIONS)
-    saved_targets_by_name = dict(_deps._TARGETS_BY_NAME)
-    saved_target_cache = dict(_target._TARGET_CACHE)
+    saved_targets_by_name = dict(_deps._TARGETS_BY_NAME)  # noqa: SLF001
+    saved_target_cache = dict(_target._TARGET_CACHE)  # noqa: SLF001
 
     _registry.clear_registry()
     _deps.clear_target_names()
@@ -45,8 +48,8 @@ def isolated_registry() -> Iterator[None]:
         _deps.clear_target_names()
         _target.clear_target_cache()
         _registry.REGISTRATIONS.extend(saved_regs)
-        _deps._TARGETS_BY_NAME.update(saved_targets_by_name)
-        _target._TARGET_CACHE.update(saved_target_cache)
+        _deps._TARGETS_BY_NAME.update(saved_targets_by_name)  # noqa: SLF001
+        _target._TARGET_CACHE.update(saved_target_cache)  # noqa: SLF001
 
 
 def load_pipeline_module(example_dir: pathlib.Path) -> None:
@@ -58,7 +61,8 @@ def load_pipeline_module(example_dir: pathlib.Path) -> None:
     spec = importlib.util.spec_from_file_location(
         f"_harmont_example_{example_dir.name}", pipeline_py
     )
-    assert spec is not None and spec.loader is not None
+    assert spec is not None
+    assert spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = mod
     try:

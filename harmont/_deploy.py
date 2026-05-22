@@ -54,7 +54,7 @@ def deploy(
     slug: str | None = None,
     *,
     name: str | None = None,
-) -> "Callable[[Callable[..., Any]], Callable[[], Deployment]]":
+) -> Callable[[Callable[..., Any]], Callable[[], Deployment]]:
     """Register a function as a deployment.
 
     The wrapped function returns a :class:`Deployment` (typically the
@@ -90,7 +90,7 @@ def deploy(
     """
     del name  # reserved-for-future-use; explicitly drop the unused binding
 
-    def decorator(fn: "Callable[..., Any]") -> "Callable[[], Deployment]":
+    def decorator(fn: Callable[..., Any]) -> Callable[[], Deployment]:
         validate_target_signature(fn)
         resolved_slug = slug if slug is not None else fn.__name__
         _validate_slug(resolved_slug)

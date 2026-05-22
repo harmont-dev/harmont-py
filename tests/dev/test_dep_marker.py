@@ -14,14 +14,14 @@ def test_dep_marker_alias_subscripts_to_annotated():
     # both static and runtime levels.
     from typing import get_args, get_origin
 
-    T = Dep[Deployment]
+    T = Dep[Deployment]  # noqa: N806
     assert get_origin(T) is not None
     args = get_args(T)
     assert args[0] is Deployment
     assert isinstance(args[1], _DepMarker)
 
 
-def test_call_with_deps_resolves_dep_param_from_DEPLOYMENTS():
+def test_call_with_deps_resolves_dep_param_from_DEPLOYMENTS():  # noqa: N802
     # Register a fake deployment under the name "db".
     DEPLOYMENTS["db"] = lambda: Deployment(name="db", driver="local")
 
